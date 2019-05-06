@@ -1,19 +1,21 @@
-import React from "react";
-import classNames from "classnames";
-import { heights, minHeights, maxHeights } from "./styles/heights";
-import { widths, minWidths, maxWidths } from "./styles/widths";
-import * as borders from "./styles/borders";
-import flexbox from "./styles/flexbox";
-import spacing from "./styles/spacing";
-import typeScale from "./styles/typeScale";
-import text from "./styles/text";
-import images from "./styles/images";
-import fontWeights from "./styles/fontWeights";
-import opacity from "./styles/opacity";
-import * as absolute from "./styles/absolute";
-import lineHeight from "./styles/lineHeight";
-import tracked from "./styles/tracked";
-import { merge, hyphensToUnderscores, bg, b_, tint } from "./util";
+import React from 'react';
+import classNames from 'classnames';
+import { heights, minHeights, maxHeights } from './styles/heights';
+import { widths, minWidths, maxWidths } from './styles/widths';
+import * as borders from './styles/borders';
+import flexbox from './styles/flexbox';
+import spacing from './styles/spacing';
+import typeScale from './styles/typeScale';
+import text from './styles/text';
+import images from './styles/images';
+import fontWeights from './styles/fontWeights';
+import opacity from './styles/opacity';
+import * as absolute from './styles/absolute';
+import lineHeight from './styles/lineHeight';
+import tracked from './styles/tracked';
+import {
+  merge, hyphensToUnderscores, bg, b_, tint
+} from './util';
 
 // should not export styles so that all updates must go through build function
 export const styles = {};
@@ -26,7 +28,7 @@ export const options = {
   rem: 16,
   colors: {},
   fonts: {},
-  clsPropName: "cls",
+  clsPropName: 'cls',
   // with clsMap, we do not have to loop all props and check endsWidth
   // not only faster but also allowing flexible mapping between cls and propName
   // clsMap: {
@@ -49,7 +51,7 @@ const transformStyle = (elementsTree, targetProp, prop) => {
 
   // parse Prop value to string
   if (prop !== undefined) {
-    if (typeof prop === "string") {
+    if (typeof prop === 'string') {
       translatedProp = prop;
     } else if (Array.isArray(prop)) {
       translatedProp = classNames.apply(null, prop);
@@ -63,13 +65,13 @@ const transformStyle = (elementsTree, targetProp, prop) => {
   if (translatedProp) {
     if (Array.isArray(targetProp)) {
       translatedStyle = targetProp.slice();
-    } else if (targetProp !== null && typeof targetProp === "object") {
+    } else if (targetProp !== null && typeof targetProp === 'object') {
       translatedStyle = [targetProp];
     } else {
       translatedStyle = [];
     }
 
-    const splitted = translatedProp.replace(/-/g, "_").split(" ");
+    const splitted = translatedProp.replace(/-/g, '_').split(' ');
 
     for (let i = 0; i < splitted.length; i++) {
       const cls = splitted[i];
@@ -79,7 +81,7 @@ const transformStyle = (elementsTree, targetProp, prop) => {
           translatedStyle.push(styles[cls]);
         } else {
           const [fnName, ...args] = cls.split(/_(?=[^_])/);
-          if (typeof options.fn[fnName] === "function") {
+          if (typeof options.fn[fnName] === 'function') {
             translatedStyle.push(options.fn[fnName].apply(elementsTree, args));
           } else {
             // throw new Error(`style '${cls}' not found`);
@@ -94,28 +96,29 @@ const transformStyle = (elementsTree, targetProp, prop) => {
   return translatedStyle;
 };
 
-const recursiveStyle = elementsTree => {
+const recursiveStyle = (elementsTree) => {
   if (React.isValidElement(elementsTree)) {
     const { props } = elementsTree;
-    let newProps = {};
+    const newProps = {};
     let translated = false;
     const mapPropKeys = options.clsMap || {};
 
     // we can use magic clsPropName to get all other style props
     if (options.clsPropName) {
-      mapPropKeys[options.clsPropName] = "style";
-      for (let propKey in props) {
+      mapPropKeys[options.clsPropName] = 'style';
+      for (const propKey in props) {
         if (
           propKey.substr(-options.clsPropName.length) === options.clsPropNameCap
         ) {
-          mapPropKeys[propKey] =
-            propKey.substr(0, propKey.length - options.clsPropName.length) +
-            "Style";
+          mapPropKeys[propKey] = `${propKey.substr(
+            0,
+            propKey.length - options.clsPropName.length
+          )}Style`;
         }
       }
     }
 
-    for (let propKey in mapPropKeys) {
+    for (const propKey in mapPropKeys) {
       const targetPropKey = mapPropKeys[propKey];
       const translatedStyle = transformStyle(
         elementsTree,
@@ -162,10 +165,10 @@ const recursiveStyle = elementsTree => {
   return elementsTree;
 };
 
-export const wrap = componentOrFunction => {
+export const wrap = (componentOrFunction, ...staticProperties) => {
   if (
-    componentOrFunction.prototype &&
-    "render" in componentOrFunction.prototype
+    componentOrFunction.prototype
+    && 'render' in componentOrFunction.prototype
   ) {
     const WrappedComponent = componentOrFunction;
     const newClass = class extends WrappedComponent {
@@ -175,18 +178,27 @@ export const wrap = componentOrFunction => {
     };
 
     /* Fix name */
-    newClass.displayName =
-      WrappedComponent.displayName || WrappedComponent.name;
+    newClass.displayName = WrappedComponent.displayName || WrappedComponent.name;
+
+    staticProperties.forEach((staticProperty) => {
+      newClass[staticProperty] = componentOrFunction[staticProperty];
+    });
 
     return newClass;
   }
 
   const func = componentOrFunction;
 
-  return function wrappedRender(...args) {
+  function wrappedRender(...args) {
     /* eslint-disable no-invalid-this */
     return recursiveStyle(func.apply(this, args));
-  };
+  }
+
+  staticProperties.forEach((staticProperty) => {
+    wrappedRender[staticProperty] = componentOrFunction[staticProperty];
+  });
+
+  return wrappedRender;
 };
 
 export const build = (updatedOptions, StyleSheet) => {
@@ -215,13 +227,13 @@ export const build = (updatedOptions, StyleSheet) => {
   ];
   // set default rem to options.rem
   const defaultRem = updatedOptions.rem || options.rem;
-  REM_SCALED.forEach(subSheet => {
-    for (let key in subSheet) {
+  REM_SCALED.forEach((subSheet) => {
+    for (const key in subSheet) {
       const styleObj = subSheet[key];
-      for (let name in styleObj) {
+      for (const name in styleObj) {
         const val = styleObj[name];
         let rem = defaultRem;
-        if (name === "fontSize" && updatedOptions.fontRem) {
+        if (name === 'fontSize' && updatedOptions.fontRem) {
           rem = updatedOptions.fontRem;
         }
 
@@ -237,8 +249,8 @@ export const build = (updatedOptions, StyleSheet) => {
   Object.assign(styleSheet, absolute.scaleStyles(defaultRem));
 
   /* Colors */
-  if (typeof updatedOptions.colors === "object") {
-    for (let name in updatedOptions.colors) {
+  if (typeof updatedOptions.colors === 'object') {
+    for (const name in updatedOptions.colors) {
       const val = updatedOptions.colors[name];
       styleSheet[`bg-${name}`] = bg(val);
       styleSheet[`${name}`] = { color: val };
@@ -248,8 +260,8 @@ export const build = (updatedOptions, StyleSheet) => {
   }
 
   /* Font-families */
-  if (typeof updatedOptions.fonts === "object") {
-    for (let key in updatedOptions.fonts) {
+  if (typeof updatedOptions.fonts === 'object') {
+    for (const key in updatedOptions.fonts) {
       styleSheet[`ff-${key}`] = { fontFamily: updatedOptions.fonts[key] };
     }
   }
@@ -264,8 +276,7 @@ export const build = (updatedOptions, StyleSheet) => {
 
   // head of time calculation for clsPropName capitalization, if not give
   if (updatedOptions.clsPropNameCap === undefined) {
-    options.clsPropNameCap =
-      options.clsPropName.charAt(0).toUpperCase() +
-      options.clsPropName.substr(1);
+    options.clsPropNameCap = options.clsPropName.charAt(0).toUpperCase()
+      + options.clsPropName.substr(1);
   }
 };
